@@ -34,16 +34,21 @@ function main(): void {
   mkdirSync(outDir, { recursive: true });
   const target = join(outDir, "entry.txt");
   writeFileSync(target, BIO, "utf8");
-  // Read the bytes back and confirm the file holds exactly the bio, byte for
-  // byte, with no trailing newline added by the write.
-  const written = readFileSync(target, "utf8");
-  if (written !== BIO) {
-    throw new Error("entry.txt does not match the bio exactly");
+  // Read the raw bytes back and confirm the file holds exactly the bio, byte
+  // for byte, with no trailing newline added by the write. Comparing buffers
+  // instead of decoded strings means an encoding surprise cannot slip past:
+  // a file that decodes to the same text from different bytes still fails.
+  const written = readFileSync(target);
+  const expected = Buffer.from(BIO, "utf8");
+  if (!written.equals(expected)) {
+    throw new Error("entry.txt does not match the bio byte for byte");
   }
-  if (written.endsWith("\n")) {
+  if (written[written.length - 1] === 0x0a) {
     throw new Error("entry.txt must not end with a newline");
   }
-  console.log(`wrote ${target} (${Buffer.byteLength(BIO, "utf8")} bytes)`);
+  console.log(
+    `wrote ${target} (${[...BIO].length} chars, ${written.length} bytes)`,
+  );
 }
 
 main();
